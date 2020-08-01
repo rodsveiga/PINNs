@@ -35,7 +35,7 @@ class PINN(nn.Module):
 
 
 
-        #### Defining the network
+        #### Initializing neural network 
 
         self.layers = nn.ModuleList()
         
@@ -79,3 +79,36 @@ class PINN(nn.Module):
         output= self.out(x)
         
         return output
+
+
+    #### Net NS
+
+    def net_jointly(self, x, y, t):
+
+        X = torch.cat([x, y, t], dim=1)
+
+        psi_p = self.forward(X)
+
+        ### Check this on a notebook
+        psi = psi_p[:, 0:1]
+        p = psi_p[:, 1:2]
+
+        ### Gradients
+
+        u = torch.autograd.grad(psi, y)
+        v = -torch.autograd.grad(psi, x)
+
+        u_t = torch.autograd.grad(u, t)
+        u_x = torch.autograd.grad(u, x)
+        u_y = torch.autograd.grad(u, y)
+        u_xx = torch.autograd.grad(u_x, x)
+        u_yy = torch.autograd.grad(u_y, y)
+
+        v_t = torch.autograd.grad(v, t)
+        v_x = torch.autograd.grad(v, x)
+        v_y = torch.autograd.grad(v, y)
+        v_xx = torch.autograd.grad(v_x, x)
+        v_yy = torch.autograd.grad(v_y, y)
+        
+
+
