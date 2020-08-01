@@ -1,7 +1,9 @@
 import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.optim as optim
+import time
+#import torch.nn.functional as F
 
 class PINN(nn.Module):
     '''
@@ -32,6 +34,14 @@ class PINN(nn.Module):
         #### Initialize parameters
         self.lambda_1 = torch.zeros(1, requires_grad= True)
         self.lambda_2 = torch.zeros(1, requires_grad= True)
+
+        #### Initializing training sets
+
+        # params (iterable) – iterable of parameters to optimize or dicts defining parameter groups
+        # Parameters need to be specified as collections that have a deterministic ordering that is consistent between runs.
+        # Examples of objects that don’t satisfy those properties are sets and iterators over values of dictionaries.
+
+        self.optimizer = optim.SGD(params= TODO, lr= 0.001, weight_decay= 0.0)
 
 
 
@@ -83,8 +93,11 @@ class PINN(nn.Module):
 
     #### Net NS
 
-    def net_jointly(self, x, y, t):
+    def net(self, x, y, t):
 
+        lambda1 = self.lambda_1
+        lambda2 = self.lambda_2
+        
         X = torch.cat([x, y, t], dim=1)
 
         psi_p = self.forward(X)
@@ -109,6 +122,50 @@ class PINN(nn.Module):
         v_y = torch.autograd.grad(v, y)
         v_xx = torch.autograd.grad(v_x, x)
         v_yy = torch.autograd.grad(v_y, y)
+
+        p_x = torch.autograd.grad(p, x)
+        p_y = torch.autograd.grad(p, y)
+
+        ### PINN
+
+        f_u = u_t + lambda1*(u*u_x + v*u_y) + p_x - lambda2*(u_xx + u_yy)
+        f_v = v_t + lambda1*(u*v_x + v*v_y) + p_y - lambda2*(v_xx + v_yy)
+
+        return u, v, p, f_u, f_v
+
+    def loss(self, u, v, u_hat, v_hat, f_u, f_v):
+
+        error = torch.mean(torch.square(u - u_hat)) + torch.mean(torch.square(v - v_hat))
+        regul = torch.mean(torch.square(f_u)) + torch.mean(torch.square(f_v))
+
+        return error + regul
+
+    def train(self, epochs):
+
+        t0 = time.time()
+        
+        for epoch in range(epochs):
+
+            u_hat, v_hat, p_hat, f_u, f_v = self.net(self.x, self.y, self.t)
+            loss_ = self.loss(self.u, self.v, u_hat, v_hat, f_u, f_v)
+            loss_print  = loss_
+
+            self.optimizer.zero_grad()   # Clear gradients for the next mini-batches
+            loss_.backward()         # Backpropagation, compute gradients
+            self.optimizer.step()
+
+            t1 = time.time()
+
+
+            ### Training status
+            print('Epoch %d, Loss= %.10f, Time= %.4f' % (epoch,
+                                                         loss_print,
+                                                         t1-t0)
+
+
+
+    
+
         
 
 
