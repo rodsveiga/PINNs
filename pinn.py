@@ -16,8 +16,8 @@ class PINN(nn.Module):
                  t, 
                  u,
                  v,
-                 layers_size= [10000, 512, 256, 64], 
-                 out_size = 29,
+                 layers_size= [3, 20, 20, 20, 20, 20, 20, 20, 20], 
+                 out_size = 2,
                  params_list= None):
         
         super(PINN, self).__init__()
@@ -30,24 +30,13 @@ class PINN(nn.Module):
         self.u = u
         self.v = v
 
-
-        #### Initialize parameters
-        self.lambda_1 = torch.zeros(1, requires_grad= True)
-        self.lambda_2 = torch.zeros(1, requires_grad= True)
-
-        #### Initializing training sets
-
-        # params (iterable) – iterable of parameters to optimize or dicts defining parameter groups
-        # Parameters need to be specified as collections that have a deterministic ordering that is consistent between runs.
-        # Examples of objects that don’t satisfy those properties are sets and iterators over values of dictionaries.
-
-        self.optimizer = optim.SGD(params= TODO, lr= 0.001, weight_decay= 0.0)
-
-
-
+        
         #### Initializing neural network 
 
         self.layers = nn.ModuleList()
+        #### Initialize parameters (we are going to learn lambda)
+        self.lambda_1 = nn.Parameter(torch.zeros(1, requires_grad= True))
+        self.lambda_2 = nn.Parameter(torch.zeros(1, requires_grad= True))
         
         for k in range(len(layers_size) - 1):
             self.layers.append(nn.Linear(layers_size[k], layers_size[k+1]))
@@ -60,7 +49,7 @@ class PINN(nn.Module):
         for m in self.layers:
             
             if params_list is None:
-                nn.init.normal_(m.weight, mean= 0, std= 1/np.sqrt(100*len(layers_size)))
+                nn.init.normal_(m.weight, mean= 0, std= 1/np.sqrt(len(layers_size)))
                 nn.init.constant_(m.bias, 0.0)
             else:
                 m.weight = params_list[m_aux]
@@ -68,11 +57,17 @@ class PINN(nn.Module):
                 m_aux += 1
                 
         if params_list is None:
-            nn.init.normal_(self.out.weight, mean= 0, std= 1/np.sqrt(100*len(layers_size)))
+            nn.init.normal_(self.out.weight, mean= 0, std= 1/np.sqrt(len(layers_size)))
             nn.init.constant_(self.out.bias, 0.0)
         else:
             self.out.weight = params_list[-2]
             self.out.bias = params_list[-1]
+
+        #self.model = nn.ModuleDict()
+
+        #self.optimizer = optim.SGD(params= self.model.parameters(), 
+        #                           lr= 0.001, 
+        #                           weight_decay= 0.0)
 
 
     #### Forward pass
@@ -98,8 +93,9 @@ class PINN(nn.Module):
         lambda1 = self.lambda_1
         lambda2 = self.lambda_2
         
-        X = torch.cat([x, y, t], dim=1)
+        X = torch.cat([x, y, t], dim=1)   #  What about velocity field data?
 
+        # Parametrize [psi, p] as neural network
         psi_p = self.forward(X)
 
         ### Check this on a notebook
@@ -140,6 +136,7 @@ class PINN(nn.Module):
 
         return error + regul
 
+
     def train(self, epochs):
 
         t0 = time.time()
@@ -158,14 +155,6 @@ class PINN(nn.Module):
 
 
             ### Training status
-            print('Epoch %d, Loss= %.10f, Time= %.4f' % (epoch,
-                                                         loss_print,
-                                                         t1-t0)
-
-
-
-    
-
-        
-
-
+            print('Epoch %d, Loss= %.10f, Time= %.4f' % (epoch, 
+                                                        loss_print,
+                                                        t1-t0))
