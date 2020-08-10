@@ -6,7 +6,7 @@ import tensorflow as tf
 import time
 from copy import deepcopy
 
-class PINN(nn.Module):
+class PINN_SEIHCR(nn.Module):
     '''
     Neural Network Class
     net_layer: list with the number of neurons for each network layer, [n_imput, ..., n_output]
@@ -23,7 +23,7 @@ class PINN(nn.Module):
                  out_size = 6,
                  params_list= None):
         
-        super(PINN, self).__init__()
+        super(PINN_SEIHCR, self).__init__()
 
         #### Data
         self.s = s
@@ -210,7 +210,7 @@ class PINN(nn.Module):
             loss_ = self.loss(self.s, self.e, self.i, self.h, self.c, self.r, 
                              s_model, e_model, i_model, h_model, c_model, r_model, 
                              f_s, f_e, f_i, f_h, f_c, f_r)
-                             
+
             loss_print  = loss_
 
             self.optimizer.zero_grad()   # Clear gradients for the next mini-batches
