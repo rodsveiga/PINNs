@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import tensorflow as tf
 import time
@@ -73,7 +74,8 @@ class PINN(nn.Module):
         for layer in self.layers:
 
             # Activation function
-            x = torch.tanh(layer(x))
+            #x = torch.tanh(layer(x))
+            x = F.sigmoid(layer(x))
         
         # Last layer: we could choose a different functionsoftmax
         #output= F.softmax(self.out(x), dim=1)
