@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -74,23 +75,26 @@ class PINN(nn.Module):
         for layer in self.layers:
 
             # Activation function
-            #x = torch.tanh(layer(x))
-            x = F.sigmoid(layer(x))
+            x = torch.tanh(layer(x))
+            #x = F.sigmoid(layer(x))
         
         # Last layer: we could choose a different functionsoftmax
         #output= F.softmax(self.out(x), dim=1)
-        output= self.out(x)
-        
+        #output= self.out(x)
+        output= F.sigmoid(self.out(x))
+
         return output
 
     #### Derivative
 
     def delta(self, x):
+        alpha = 10.
         list_ = []
         list_.append(0)
         for j in range(len(x) - 1):
             list_.append(x[j+1].item() - x[j].item())
-        return torch.Tensor(list_)  
+        dxdt = pd.DataFrame(list_).ewm(com= alpha).mean()
+        return torch.Tensor(dxdt[0])  
 
 
     #### Net NS
@@ -122,12 +126,20 @@ class PINN(nn.Module):
         return s_model, i_model, f_s, f_i
 
 
-    def loss(self, s, i, s_hat, i_hat, f_s, f_i):
+    def loss(self, s, i, s_hat, i_hat, f_s, f_i, regul_param= 1.):
 
         error = torch.mean(torch.square(s - s_hat)) + torch.mean(torch.square(i - i_hat))
         regul = torch.mean(torch.square(f_s)) + torch.mean(torch.square(f_i))
 
-        return error + regul
+        #print('s_hat = ', s_hat)
+        #print('i_hat = ', i_hat)
+        #print('f_s = ', f_s)
+        #print('d')
+
+        print('error = ', error)
+        print('regul = ', regul)
+
+        return error + regul_param*regul
 
 
     def get_gradient(self, f, x):
@@ -152,14 +164,14 @@ class PINN(nn.Module):
         return torch.cat((x_grads)).view(output_shape)
 
 
-    def train(self, epochs):
+    def train(self, epochs, regul_param):
 
         t0 = time.time()
         
         for epoch in range(epochs):
 
             s_model, i_model, f_s, f_i = self.net(self.s, self.i, self.t)
-            loss_ = self.loss(self.s, self.i, s_model, i_model, f_s, f_i)
+            loss_ = self.loss(self.s, self.i, s_model, i_model, f_s, f_i, regul_param= regul_param)
             loss_print  = loss_
 
             self.optimizer.zero_grad()   # Clear gradients for the next mini-batches
